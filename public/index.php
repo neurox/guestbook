@@ -1,5 +1,6 @@
 <?php
 
+    use Particle\Validator\Validator;
     require_once '../vendor/autoload.php';
 
     $file = '../storage/database.db';
@@ -12,10 +13,38 @@
     ]);
 
     $comment = new SitePoint\Comment($database);
-    $comment->setEmail('neurox@gomez.com')
-    ->setName('Neurox Gómez')
-    ->setComment('Probando el sistema por primera vez')
-    ->save();
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        //echo "Form was submitted!";
+
+        $v = new Validator();
+        $v->required('name')->lengthBetween(1, 100)->alnum(true);
+        $v->required('email')->email()->lengthBetween(5, 255);
+        $v->required('comment')->lengthBetween(10, null);
+
+        $result = $v->validate($_POST);
+
+        if ($result->isValid()) {
+
+            try {
+                $comment
+                    ->setName($_POST['name'])
+                    ->setEmail($_POST['email'])
+                    ->setComment($_POST['comment'])
+                    ->save();
+
+                header('Location: /');
+                return;
+
+            } catch (\Exception $e) {
+                die($e->getMessage());
+            }
+
+        } else {
+            dump($result->getMessages());
+        }
+
+    }
 
 ?>
 <!doctype html>
@@ -32,6 +61,7 @@
 
         <link rel="stylesheet" href="css/normalize.css">
         <link rel="stylesheet" href="css/main.css">
+        <link rel="stylesheet" href="css/custom.css">
         <script src="js/vendor/modernizr-2.8.3.min.js"></script>
     </head>
     <body>
@@ -40,6 +70,17 @@
         <![endif]-->
 
         <!-- Add your site or application content here -->
+
+        <?php foreach ($comment->findAll() as $comment) : ?>
+
+            <div class="comment">
+                <h3>En <?= $comment->getSubmissionDate() ?>, <?= $comment->getName() ?> escribio:</h3>
+
+                <p><?= $comment->getComment(); ?></p>
+            </div>
+
+        <?php endforeach; ?>
+
         <form method="post">
             <label>Nombre: <input type="text" name="name" placeholder="Tu nombre"></label>
             <label>eMail: <input type="text" name="email" placeholder="tu@email.com"></label>
